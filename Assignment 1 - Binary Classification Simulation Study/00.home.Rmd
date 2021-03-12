@@ -1,0 +1,74 @@
+---
+title: "Binary Classification: A Simulation Study"
+author: "John James jtjames2@illinois.edu"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4
+    toc_float: true
+    theme: flatly
+    highlight: zenburn
+    css: "style.css"
+bibliography: references.bib    
+csl: ieee.csl
+---
+
+```{r libraries, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE, results='hide'}
+library(extrafont)
+library(htmltools)
+library(kableExtra)
+library(kfigr)
+library(knitr)
+library(reticulate)
+library(rmarkdown)
+library(tufte)
+use_condaenv("mcs")
+matplotlib <- import("matplotlib")
+matplotlib$use("Agg", force=TRUE)
+```
+
+
+
+```{r setup, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE}
+figures <- '/figures/'
+options(knitr.table.format = "html")
+options(max.print=100, scipen=999, width = 800)
+knitr::opts_chunk$set(echo=FALSE,
+	             cache=FALSE,
+               prompt=FALSE,
+	             eval = TRUE,
+               tidy=TRUE,
+               fig.height = 8,
+               fig.width = 20,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+knitr::opts_knit$set(width=100, figr.prefix = T, figr.link = T)
+knitr::opts_chunk$set(fig.path = figures)
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark=",")
+})
+```
+
+```{python imports}
+import numpy as np
+import pandas as pd
+import matplotlib
+import matplotlib.pyplot as plt
+```
+
+```{python syspath}
+import inspect
+import os
+import sys
+os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = 'C:/Users/John/anaconda3/envs/gd383/Library/plugins/platforms'
+# Add home directory to path
+home = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.append(home)
+```
+
+
+```{r child = '10.intro.Rmd'}
+```
