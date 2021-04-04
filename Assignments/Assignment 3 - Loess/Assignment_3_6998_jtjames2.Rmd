@@ -1,0 +1,147 @@
+---
+title: "PSL (S21) Coding Assignment 3"
+date: "02/23/2021"
+output:
+  html_document:
+    toc: yes
+    df_print: paged
+  html_notebook:
+    theme: readable
+    toc: yes
+    toc_float: yes
+---
+John James
+
+## Prepare your function
+
+Write your own function to use LOO-CV and GCV to select the optimal span for `loess`. If you do not know where to start, you can follow the structure below to prepare your functions. 
+
+
+```{r eval = TRUE, include=TRUE}
+lo.lev <- function(x1, sp){
+  # x1: n-by-1 feature vector
+  # sp: a numerical value for "span"
+  
+  n = length(x1);
+  A = matrix(0,n,n);
+  
+  ##############################################
+  # YOUR CODE: Compute the diagonal entries of the 
+  #            smoother matrix S and 
+  #            store it in a vector "lev"
+  # Tip: check how we compute the smoother matrix
+  #      for smoothing spline models
+  ##############################################
+  control = loess.control(surface = "direct")
+  for(i in 1:n){
+    y = rep(0, n); y[i]=1;
+    yi = loess(y~x1,span=sp, control=control)$fitted
+    A[,i]= yi
+  }
+  return(diag(A))
+}
+
+onestep_CV <- function(x1, y1, sp){
+  
+  ##############################################
+  #  YOUR CODE: 
+  #  1) Fit a loess model y1 ~ x1 with span = sp, and extract 
+  #     the corresponding residual vector
+  #  2) Call lo.lev to obtain the diagonal entries of S
+  #  3) Compute LOO-CV and GCV using formula from lecture notes
+  #    [lec_W5_NonlinearRegression.pdf] page 33. 
+  ##############################################
+  
+  # Fit the loess model and obtain the residuals
+  control = loess.control(surface = "direct")
+  resids = loess(y1~x1,span=sp, control=control)$res;
+  
+  # Get the leverage and compute average leverage
+  lev = lo.lev(x1,sp) 
+  avg_lev = mean(lev)
+  n = NROW(resids)
+  
+  # Compute loocv and gcv using the leverage and 
+  # average leverage respectively
+  cv = 1/n * sum((resids/(1-lev))^2)
+  gcv = 1/n * sum((resids/(1-avg_lev))^2)
+  
+  
+  return(list(cv = cv, gcv = gcv))
+}
+
+myCV <- function(x1, y1, span){
+  # x1: feature vector of length n
+  # y1: response vector of length n
+  # span: a sequence of values for "span"
+  
+  m = length(span)
+  cv = rep(0, m)
+  gcv = rep(0, m)
+  
+  for(i in 1:m){
+    tmp = onestep_CV(x1, y1, span[i])
+    cv[i] = tmp$cv
+    gcv[i] = tmp$gcv
+  }
+  return(list(cv = cv, gcv = gcv))
+}
+```
+
+When computing LOO-CV and GCV, we need to know the diagonals of the smoother matrix. Check how we compute the smoother matrix for smoothing spline models, and use the same idea to compute the smoother matrix for `loess`. 
+
+Note that we do not need the whole matrix. What we need are its diagonal entries (also referred to as the **leverage** in statistics jargon), an n-by-1 vector computed by your function `lo.lev`.
+
+In your `lo.lev` and `onestep_CV` functions, always use option `control = loess.control(surface = "direct")` when calling `loess`, which makes the loess model to run regression without any approximation.
+
+[https://stat.ethz.ch/R-manual/R-devel/library/stats/html/loess.control.html](https://stat.ethz.ch/R-manual/R-devel/library/stats/html/loess.control.html)
+
+
+## Test your function
+
+Test your function with data "Coding3_Data.csv."
+
+```{r}
+mydata = read.csv(file = "Coding3_Data.csv")
+```
+
+```{r}
+dim(mydata)
+plot(mydata$x, mydata$y, xlab="X", ylab="y")
+```
+
+Create a grid of values for span: 15 values that are equally spaced between 0.20 and 0.90. Call your function `myCV` to compute the corresponding LOO-CV and GCV.
+
+```{r}
+span1 = seq(from = 0.2, by = 0.05, length = 15 )
+cv.out = myCV(mydata$x, mydata$y, span1)
+```
+
+## Print out your results
+
+Print your results on LOO-CV and GCV. Both achieve their minimal at 0.5.
+
+```{r paged.print=FALSE}
+myout = data.frame(CV = cv.out$cv, 
+                   GCV = cv.out$gcv, 
+                   span = span1)
+myout
+myout$span[myout$GCV == min(myout$GCV)]
+myout$span[myout$CV == min(myout$CV)]
+```
+
+
+## Plot the fitted curve
+
+Plot the data (red circles), the true curve (gray) and the fitted curve (blue dashed line) using the optimal span.
+
+```{r}
+spangcv.min = 0.5
+plot(mydata$x, mydata$y, xlab="", ylab="", col="gray");
+fx = 1:50/50;
+fy = sin(12*(fx+0.2))/(fx+0.2)
+lines(fx, fy, col=8, lwd=2);
+f = loess(y ~ x, mydata, span = spangcv.min)
+lines(fx, predict(f, data.frame(x = fx), surface = "direct"), 
+      lty=2, lwd=2, col="blue")
+```
