@@ -1,0 +1,35 @@
+This is pdfTeX, Version 3.14159265-2.6-1.40.19 (MiKTeX 2.9.6800 64-bit) (preloaded format=pdflatex 2021.4.4)  4 APR 2021 02:28
+entering extended mode
+**./Assignment_4_6998_netID.tex
+(Assignment_4_6998_netID.tex
+LaTeX2e <2019-10-01>
+(C:\Users\John\AppData\Local\Programs\MiKTeX\tex/latex\base\article.cls
+Document Class: article 2020/04/10 v1.4m Standard LaTeX document class
+(C:\Users\John\AppData\Local\Programs\MiKTeX\tex/latex\base\size11.clo
+File: size11.clo 2020/04/10 v1.4m Standard LaTeX file (size option)
+)
+\c@part=\count80
+\c@section=\count81
+\c@subsection=\count82
+\c@subsubsection=\count83
+\c@paragraph=\count84
+\c@subparagraph=\count85
+\c@figure=\count86
+\c@table=\count87
+\abovecaptionskip=\skip41
+\belowcaptionskip=\skip42
+\bibindent=\dimen102
+) ("C:\Program Files\MiKTeX 2.9\tex/latex\geometry\geometry.sty"
+Package: geometry 2018/04/16 v5.8 Page Geometry
+(C:\Users\John\AppData\Local\Programs\MiKTeX\tex/latex\graphics\keyval.sty
+Package: keyval 2014/10/28 v1.15 key=value parser (DPC)
+\KV@toks@=\toks14
+) (C:\Users\John\AppData\Local\Programs\MiKTeX\tex/generic\iftex\ifpdf.sty
+Package: ifpdf 2019/10/25 v3.4 ifpdf legacy package. Use iftex instead.
+
+
+! Sorry, but C:\PROGRA~1\MIKTEX~1.9\miktex\bin\x64\pdflatex.exe did not succeed.
+
+! The log file hopefully contains the information to get MiKTeX going again:
+
+!   C:\Users\John\AppData\Local\MiKTeX\2.9\miktex\log\pdflatex.log

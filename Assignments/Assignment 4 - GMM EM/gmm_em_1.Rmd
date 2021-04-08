@@ -1,0 +1,346 @@
+```{r unset_bigmark, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE}
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark="")
+})
+```
+## Introduction
+The multivariate Gaussian distribution with mean $\mu\in\mathbb{R}^n$ and covariance matrix $\Sigma \in \mathbb{S}^N_{++}$ has a probability density function given by:
+$$p(x;\mu,\Sigma)=\frac{1}{(2\pi)^{n/2}|\Sigma|^{1/2}}\text{exp}\bigg(-\frac{1}{2}(x-\mu)^T\Sigma^{-1}(x-\mu)\bigg)=\mathcal{N}(x|\mu_k,\Sigma_k).$$
+
+## Guassian Mixture Models          
+Gaussian Mixture Models (GMMs) [@Pearson1893] are a class of finite mixture models that are used to model data that are characterized by multiple **modes** or regions of high probability mass, separated by regions of smaller probability mass, we may assume this **multimodal** data are independent and identically distributed (IID) random variables from an underlying Gaussian density $p(x|\theta)$.
+
+$$p(x|\theta)=\sum_{k=1}^K\pi_k\mathcal{N}(x|\mu_k,\Sigma_k)$$
+where:     
+
+- $\pi_k$ is mixing parameter, the probability that a data point $x$ is generated from a Gaussian density $k$,       
+- $\mathcal{N}(x|\mu_k,\Sigma_k)$ is the multivariate Gaussian probability density function (PDF)
+- $\theta= \{\pi_k,\mu_k,\Sigma_k\}$ encapsulates the parameters of the $k$ Gaussian densities,    
+
+Note: The remainder of this section and the exercise that follows assumes a single known covariance matrix $\Sigma$ that is shared among the $K$ component densities. 
+
+## Marginal (Incomplete) Likelihood Function
+Given $X=\{x_1,\cdots,x_n\}\in\mathbb{R}$, a mixture of $K$ Gaussian components with unknown means $\mu_k$, known covariance matrix $\Sigma$, and an unknown mixing parameter $\pi_k$, we seek to find the parameters $\theta$ that maximize the following likelihood function:    
+
+$$
+\begin{align}
+\mathcal{L}(\theta)&=\prod_{i=1}^n p(x_i|\theta)\\
+&= \prod_{i=1}^n\sum_{k=1}^K\pi_k\mathcal{N}(x_i|\mu_k,\Sigma_k)
+\end{align}
+$$
+For analytical and numerical stability reasons we take the log likelihood as follows:
+$$
+\begin{align}
+\text{log }\mathcal{L}(\theta)&=\sum_{i=1}^n\text{ log } p(x_i|\theta)\\
+&=\sum_{i=1}^n\text{ log }\sum_{k=1}^K p(x_i|\theta)\\
+&=\sum_{i=1}^n\text{log }\bigg(\sum_{k=1}^K\pi_k\mathcal{N}(x_i;\mu_k,\Sigma)\bigg)\\
+\end{align}
+$$
+Given the summation inside the log, finding a maximum likelihood estimate will be difficult to intractable. Further, since we don't observe $\pi_k$, we say that the data are, and by extension, this log-likelihood function is **incomplete.**.
+
+## Complete Log-Likelihood
+To represent the unknown parameter $\pi_k$, we introduce a latent random variable $Z\in{\mathbb{R}^{n \times K}}$. For each data point, $x_i$, there is a corresponding $z_i$, a $k$-dimensional vector that indicates from which of the $k$ Gaussians $x_i$ was drawn, which has the following properties:     
+
+- $z_k \in \{0,1\}, k=1,\cdots, K$.        
+- $z_k=1$ indicates that its corresponding data point $x_i$ was drawn from the $k^{th}$ Gaussian component,        
+- $z_k=1 \rightarrow z_j=0 \forall j \ne k$.       
+
+To find the MLE for the parameters $\theta$, we **complete** the data set by assuming that both $X$ and, a latent variable, $Z$ are observed. We can now rewrite the **complete** log likelihood function in terms of the joint density $p(x,z|\theta)$ as follows:  
+$$
+\begin{align}
+\text{log }\mathcal{L}(\theta)&=\sum_{i=1}^n\text{ log } p(x_i|\theta)\\
+&=\sum_{i=1}^n\text{ log }\sum_{k=1}^K p(x_i,z_i|\theta)\\
+\end{align}
+$$
+Still, a closed-form solution is not extant. The summation inside the log remains and since $z$ is not observed, we have incomplete data. 
+
+## Expectation Maximization (EM) Algorithm
+The Expectation Maximization (EM) algorithm [@Dempster1977] is numerical optimization method of finding the maximum-likelihood estimate of the parameters of latent distributions and models with **incomplete** data. The algorithm is summarized as follows:           
+
+  1. Initialization model parameters with initial guess              
+  2. Iterate until convergence:            
+    2.1 Expectation Step: Compute values for latent variables given model parameters,         
+    2.2 Maximization Step: Maximize likelihood function, based upon latent variables from previous step.           
+    
+The intuition behind the EM algorithm is to first create a lower bound of the log-likelihood, then increase the likelihood indirectly by maximizing the lower bound [@Xing2014]. The essential insight comes from convexity theory and a theorem called Jensen's inequality.
+
+### Jensen's Inequality
+For a random variable $x$ and a **convex** function,
+$$E[f(x)]\ge f(E[x])$$
+For a random variable $x$ and a **concave** function,
+$$f(E[x]) \ge E[f(x)]$$
+Iff $x$ is a constant $$f(E[x])=E[f(x)]$$
+
+Using Jensen's inequality, we will derive a method by which latent variables are estimated, provide the theoretical justification for the EM objective function, and specify the process by which the algorithm estimates model parameters. 
+
+### Expectation Step
+The Expectation Step (E-Step) estimates a latent variable, $Q$, the distribution over the possible values of $Z$ where $\sum_z Q(z)=1$ and $Q(z)\ge0$. The resulting log likelihood is:   
+
+$$
+\begin{align}
+\text{log }\mathcal{L}(\theta)&=\text{ log } p(x;\theta)\\
+&=\text{ log }\sum_{k=1}^K p(x,z;\theta)\\
+&=\text{ log }\sum_{k=1}^K Q(z)\frac{p(x,z;\theta)}{Q(z)} 
+\end{align}
+$$
+
+where $Q(z) \ne 0$ whenever $p(x,z|\theta)\ne 0$.
+
+Note: We dropped the outer summation over the samples as it is inconsequential to this analysis. 
+
+First, we'll use Jensen's inequality to remove the summation from inside then find an estimate for the latent variable $z$ that provides a lower bound on the likelihood function. 
+
+To apply Jensen's inequality we must show that the objective function is concave. We know that $f(x)=log x$ is a concave function, since $f^{\prime\prime}=\frac{-1}{x^2}<0$ over its domain $x\in \mathbb{R}^+$.
+Next, the summation:      
+$$\sum_z Q(z)\bigg[\frac{p(x,z;\theta)}{Q(z)}\bigg]$$
+is just the expectation of the quantity $\frac{p(x,z|\theta)}{Q(z)}$ [@Ng2005] with respect to $Z$ drawn according to $Q$. By Jensen's inequality:
+
+$$\text{log}\bigg(E_{Q(Z)}\bigg[\frac{p(x,z;\theta)}{Q(Z)}\bigg]\bigg)\ge E_{Q(Z)}\bigg[\text{log}\bigg(\frac{p(x,z;\theta)}{Q(Z)}\bigg)\bigg]$$
+Hence, the **expected** likelihood function, with the log inside the summation, provides a lower bound on the likelihood. The expected log-likelihood function is derived as follows:   
+$$
+\begin{align}
+\text{log }\mathcal{L}(\theta)&=\text{ log } p(x_i;\theta)\\
+&=\text{ log }\sum_{k=1}^K p(x_i,z_i;\theta)\\
+&=\text{ log }\sum_{k=1}^K Q(z_i)\frac{p(x_i,z_i;\theta)}{Q(z_i)} \\
+&\ge\sum_{k=1}^KQ(z_i)\text{ log } \frac{p(x_i,z_i;\theta)}{Q(z_i)} \\
+\end{align}
+$$
+Next, we want to find a value for $Q(z_i)$ at some iteration $t$ so that the lower bound equals the log-likelihood at iteration $t$. According to Jensen's inequality, the lower bound equals the likelihood if $\frac{p(x_i,z_i;\theta)}{Q(z_i)}$ is constant. Concretely, we require that:    
+$$p(x_i,z_i;\theta) \propto Q(z_i)$$
+Since $Q(z)$ is a distribution, $\sum_z Q(z)=1$ and 
+$$
+\begin{align}
+Q(Z)&=\frac{p(x,Z;\theta)}{\sum_Z p(x,Z;\theta)}\\
+&=\frac{p(x,Z;\theta)}{ p(x;\theta)}\\
+&=p(Z|x;\theta)
+\end{align}
+$$
+we choose $Q(z_i)=p(z_i|x_i,\theta)$ and $\pi_{ik}=Q_i(z_i=k)=P(z_i=k|x_i;\phi,\mu_k,\Sigma)$.
+
+### Maximization Step
+In the previous step, we found a lower bound equal to the log-likelihood by setting $Q(z_i)=p(z_i|x_i,\theta)$. Next, we maximize the *expected* log-likelihood function, the lower bound of the likelihood function. First, we show that the expected log-likelihood is indeed monotonic. Concretely, let:
+$$g(\theta)=E_{Q(Z)}\text{log }p(x,Z|\theta)=\sum_{k=1}^Kp(Z=k|x,\theta_0)$$
+We must show that:
+$$g(\theta_{t+1})\ge g(\theta_t) \implies p(x|\theta_{t+1})\ge p(x|\theta_t)$$
+
+$$
+\begin{align}
+g(\theta_{t+1})&=\text{max }\sum_{i=1}^nE_{Q^{t+1}(Z=k)}\bigg[\text{log }\frac{p(x_i,z_k;\theta)}{Q^{t+1}(z_k)}\bigg]\\
+&\ge\sum_{i=1}^nE_{Q^{t+1}(Z=k)}\bigg[\text{log }\frac{p(x_i,z_k;\theta^t)}{Q^{t+1}(z_k)}\bigg]\\
+&\ge\sum_{i=1}^nE_{Q^{t}(Z=k)}\bigg[\text{log }\frac{p(x_i,z_k;\theta^t)}{Q^{t}(z_k)}\bigg]\\
+&=g(\theta_t)
+\end{align}
+$$
+Consequently, we've shown that the EM algorithm will make the log-likelihood increase with each iteration.
+
+Next, we derive the parameter updates.
+
+### Parameter Estimation
+We need to maximize the expected log-likelihood function with respect to our parameters $\phi, \mu, \Sigma$. 
+$$
+\begin{align}
+E_{Q(Z)}\big[\text{log }p(x,Z|\theta)]&=\sum_{i=1}^n\sum_{k=1}^K Q(z_i)\text{ log } \frac{p(x_i,z_i;\phi,\mu,\Sigma)}{Q(z_i)} \\
+&=\sum_{i=1}^n\sum_{k=1}^K Q(z_i=k)\text{ log } \frac{p(x_i|z_i=k;\mu,\Sigma)p(z_i=k;\phi)}{Q(z_i=k)} \\
+&=\sum_{i=1}^n\sum_{k=1}^K \pi_{ik}\text{ log } \frac{p(x_i|z_i=k;\mu,\Sigma)p(z_i=k;\phi)}{\pi_{ik}} \\
+&=\sum_{i=1}^n\sum_{k=1}^K \pi_{ik}\text{ log } \frac{\frac{1}{(2\pi)^{d/2}|\Sigma|^{1/2}}\text{exp }(-\frac{1}{2}(x_i-\mu_k)^T\Sigma^{-1}(x_i-\mu_k))\phi_k}{\pi_{ik}} \\
+\end{align}
+$$
+
+#### Parameter Update: Mean   
+We take the derivative with respect to $\mu_l$:
+$$
+\begin{align}
+\nabla E_{Q(Z)}\big[\text{log }p(x,Z|\theta)]&= \nabla\sum_{i=1}^n\sum_{k=1}^K \pi_{ik}\text{ log } \frac{\frac{1}{(2\pi)^{d/2}|\Sigma|^{1/2}}\text{exp }(-\frac{1}{2}(x_i-\mu_k)^T\Sigma^{-1}(x_i-\mu_k))\phi_k}{\pi_{ik}} \\
+&=-\nabla\sum_{i=1}^n\sum_{k=1}^K \pi_{ik}\frac{1}{2}(x_i-\mu_k)^T\Sigma^{-1}(x_i-\mu_k)\\
+&=\frac{1}{2}\sum_{i=1}^n \pi_{il}\nabla2\mu_l^T\Sigma^{-1}x_i-\mu_l\Sigma^{-1}\mu_l\\
+&=\sum_{i=1}^n\pi_{ik}(\Sigma^{-1}_kx_i-\Sigma^{-1}_k\mu_k)
+\end{align}
+$$
+Setting this to zero and solving for $\mu_l$ yields the following update rule:
+$$\mu_l:=\frac{\sum_{i=1}^n \pi_{il}x_i}{\sum_{i=1}^n\pi_{il}}$$
+
+#### Parameter Update: Mixing Parameter
+Extracting from the expected log-likelihood function only the terms that depend upon $\pi_k$, we maximize:
+$$
+\begin{align}
+\sum_{i=1}^n\sum_{k=1}^K \pi_{ik}\text{ log } \pi_{k} 
+\end{align}
+$$
+Taking the derivative and setting it to zero yields the following update for the mixing parameter:
+$$\pi_k:=\frac{\sum_{i=1}^n\pi_{ik}}{n}$$
+
+#### Parameter Update: Covariance
+Taking derivate with respect to $\Sigma$ yields the following update rule:
+$$\Sigma=\frac{\sum_{i=1}^n\pi_{ik}(x_i-\mu_k)(x_i-\mu_k)^T}{\sum_{i=1}^n\pi_{ik}}$$
+
+
+
+---
+
+## Implementation
+This custom implementation of the Expectation Maximation algorithm will be evaluated against the EM algorithm in the mclust R package. 
+
+```{r}
+library(mclust)
+options(digits=8)
+options()$digits
+```
+
+### E-Step: Posterior Probability of z_i=k
+```{r}
+compute_Q <- function(data, G, para) {
+    prob <- para$prob
+    mean <- para$mean
+    Sigma <- para$Sigma
+    Sigma_inv <-para$Sigma_inv
+
+    # Compute ak
+
+    ak <- rep(0,G)
+    for (i in 1:G) {
+        ak[i] <- log(prob[i]/prob[1]) + 
+                    0.5 * t(data-mean[,1]) %*% Sigma_inv %*% (data-mean[,1]) - 
+                    0.5 * t(data-mean[,i]) %*% Sigma_inv %*% (data-mean[,i])            
+        }
+
+    # Shift for numerical stability
+    ak_new = ak-max(ak)    
+
+    # Compute gamma_k, the posterior probability of z_i = k
+    Q_k = exp(ak_new) / sum(exp(ak_new))    
+    return(Q_k)
+}
+
+Estep <- function(data, G, para) {    
+    Q_k <- t(apply(data, 1, compute_Q, G, para))            
+    return(Q_k)
+}
+```
+
+### M-Step: Parameter Estimation
+```{r}
+Mstep <- function(data, G, para, prob) {    
+    n <- nrow(data)
+    p <- ncol(data)
+    # Update prob
+    prob_new = colMeans(prob)
+    # Update mean
+    mu_new <- t(data) %*% prob %*% diag(1/colSums(prob))
+    # Update Sigma
+    Sigma_new <- matrix(0,p,p)
+    for (i in 1:G) {
+        y <- t(data) - mu_new[,i]
+        Sigma_new <- Sigma_new + y %*% diag(prob[,i]) %*% t(y)
+    }
+    Sigma_new <- Sigma_new / n
+    Sigma_inv <- solve(Sigma_new)
+
+    para_new <- list(prob = prob_new,
+                     mean = mu_new,
+                     Sigma = Sigma_new,
+                     Sigma_inv = Sigma_inv)    
+    return(para_new)
+}
+
+```
+
+### MyEm: Driver
+```{r}
+myEM <- function(data, itmax, G, para) {
+    para$Sigma_inv = solve(para$Sigma)    
+    for (i in 1:itmax) {
+        prob <- Estep(data, G, para)
+        para <- Mstep(data, G, para, prob)
+    }
+    para["Sigma_inv"] <- NULL
+    return(para)
+}
+```
+### Data
+The Old Faithful Geyser Data Set contains 272 observations of two variables:        
+- Eruption time in minutes,      
+- Waiting time to next eruption      
+
+```{r}
+dim(faithful)
+head(faithful)
+n <- nrow(faithful)
+```
+
+### Two Clusters
+#### Initialization
+We initialize parameters by first randomly assigning the n samples into two groups and then running one iteration of the built-in M-step.
+
+```{r}
+K <- 2
+set.seed(234)  # replace 234 by the last 4-dig of your University ID
+gID <- sample(1:K, n, replace = TRUE)
+Z <- matrix(0, n, K)
+for(k in 1:K)
+  Z[gID == k, k] <- 1 
+ini0 <- mstep(modelName="EEE", faithful , Z)$parameters
+
+```
+
+Here are the initial values we use for (prob, mean, Sigma).
+```{r}
+para0 <- list(prob = ini0$pro, 
+              mean = ini0$mean, 
+              Sigma = ini0$variance$Sigma)
+para0
+```
+
+#### Compare Results
+Compare the estimated parameters returned by myEM and the ones returned by the EM algorithm in mclust after 20 iterations.
+
+##### Output from myEM
+```{r}
+dim(faithful)
+myEM(data=faithful, itmax=20, G=K, para=para0)
+```
+
+##### Output from mclust
+
+```{r}
+Rout <- em(modelName = "EEE", data = faithful,
+           control = emControl(eps=0, tol=0, itmax = 20), 
+           parameters = ini0)$parameters
+list(Rout$pro, Rout$mean, Rout$variance$Sigma)
+```
+### Three Clusters
+#### Initialization
+
+```{r}
+K <- 3
+set.seed(234)  # replace 234 by the last 4-dig of your University ID
+gID <- sample(1:K, n, replace = TRUE)
+Z <- matrix(0, n, K)
+for(k in 1:K)
+  Z[gID == k, k] <- 1 
+ini0 <- mstep(modelName="EEE", faithful , Z)$parameters
+para0 <- list(prob = ini0$pro, 
+              mean = ini0$mean, 
+              Sigma = ini0$variance$Sigma)
+para0
+```
+
+#### Compare Results
+Compare the estimated parameters returned by myEM and the ones returned by the EM algorithm in mclust after 20 iterations.
+
+##### Output from myEM
+```{r}
+myEM(data=faithful, itmax=20, G=K, para=para0)
+```
+
+##### Output from mclust
+
+```{r}
+Rout <- em(modelName = "EEE", data = faithful,
+           control = emControl(eps=0, tol=0, itmax = 20), 
+           parameters = ini0)$parameters
+list(Rout$pro, Rout$mean, Rout$variance$Sigma)
+
+```
+
+---
+

@@ -1,0 +1,76 @@
+```{r unset_bigmark, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE}
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark="")
+})
+```
+Gaussian mixture models (GMM), a class of finite mixtures dating back to nineteenth century statistical literature [@Pearson1893], are powerful parametric frameworks for representing clusters of multivariate normal distributions and data. Expectation Maximization (EM) [@Dempster1977] is an iterative algorithm for computing maximum likelihood estimates from data IID-generated from such mixtures in which the parameters are unknown.
+
+This note describes Expectation Maximization of Gaussian Mixture Models (EM-GMM) and details how the algorithm is used to estimate parameters for the multivariate Gaussian distribution. In three brief vignettes, we'll:         
+  1. Develop a high-level sketch of the process of parameter estimation.      
+  2. Present more precise expressions and derivations of the likelihood, objective, and EM update functions.      
+  3. Implement and test the EM algorithm in Python.      
+
+## Overview 
+In unsupervised learning contexts, we are tasked with finding interesting patterns in the data. For instance:
+
+- Measuring quality of "sentences" based upon the distribution of the words and their probabilities.       
+- Organizing a collection of scientific papers into groups in order to understand how the field's research has evolved over time.      
+- Studying behavior through social networks to reveal the dynamics of group and cluster formation.       
+- Decompose energy consumption data into a sum of components that can be matched to devices in a house.      
+
+These cases are examples of unsupervised learning problems in which the target isn't known in advance. Instead, we discover the patterns of interest from the data.
+
+### Learning Strategy
+
+Hence, our general learning strategy is to:
+
+1. Formulate a probabilistic model that posits certain unobserved random variables, i.e. *latent variables*, which correspond to things we are interested in inferring,             
+2. Infer values of the latent variables for all data points, and     
+3. Estimate parameters that relate the data to the latent variables.
+
+Mixture models are one such type of latent variable.
+
+### Gaussian Mixture Models 
+When the data we are trying to model are characterized by multiple **modes** or regions of high probability mass, separated by regions of smaller probability mass, we may assume this **multimodal** data are independent and identically distributed (IID) random variables from an underlying density $p(x)$, that is defined as a finite  mixture model with $K$ components. For a single sample $x$, we have:        
+$$p(x)=\sum_{k=1}^K\pi_kp(x|k)$$
+where:     
+- $k$ are the discrete labels of the individual densities,      
+- $\pi_k$ are the mixing weights, i.e. the discrete probabilities that $x$ is drawn from component $k$, constrained by $\sum_{k=1}^K \pi_k =1$,               
+- $p(x|k)$ are the densities for each component, i.e., the probabilities that $x$ takes on its value given that it is from class $k$
+
+The **Guassian Mixture Model**, assumes Gaussian densities and takes a slightly different form:    
+$$p(x|\theta)=\sum_{k=1}^K\pi_k\mathcal{N}(x|\mu_k,\Sigma)$$
+where $\theta= \{\pi_k,\mu_k,\Sigma\}$ are the mixing weight, mean of the mixture component $k$ and a **shared** covariance.
+
+
+### Maximum Likelihood Estimation
+At this stage, we have a data set of $N$ IID-generated observations $X=\{x_1,\cdots,x_n\}$, each data point drawn from a Gaussian distribution with unknown mean $\mu_k$ and known shared covariance $\Sigma$. We also have a density function $p(x|\Theta)$ governed by a set of parameters $\Theta=(\theta_1\cdots,\theta_K)\forall K$. 
+
+Hence, we compute a maximum likelihood estimation for $\mu$. The likelihood function $\mathcal{L}(\Theta|\mathcal{X})$ over the $N$ samples is:
+$$\mathcal{L}(\Theta|\mathcal{X})=p(\mathcal{X}|\Theta)=\prod_{i=1}^N p(x_i|\Theta)$$
+Here, the data are fixed and the goal is to estimate the parameters $\Theta$ that maximizes $\mathcal{L}$. Concretely, we seek 
+$$\hat\Theta = \underset{\Theta}{\operatorname{argmax}}\mathcal{L}(\Theta|X)$$
+For analytical reasons, we normally maximize the likelihood on the log scale, so the log likelihood is:
+$$\text{log    } \mathcal{L}(\Theta|\mathcal{X})=\sum_{i=1}^N\text{log }\sum_{k-1}^K \pi_k\mathcal{N}(x_i|\mu_k,\Sigma)$$
+What happens next depends upon the form of $p(x|\Theta)$. In the case of a single Gaussian distribution, where $\Theta=(\mu,\sigma^2)$, maximizing the log likelihood is trivial. We set the derivative to zero and solve for $\mu$ and $\sigma^2$. For our problem; however, we can't solve directly for $\mu$ because we have no value for $\pi_k$. That is, the data are **incomplete**. Hence we refer to the above expression as the **incomplete log likelihood function**.
+
+#### Modeling Using Latent Variables      
+Now we reintroduce the concept of hidden or **latent variable**. For each $x$, we define a $k$-dimensional *binary* vector, $Z$ with the following properties:
+- $z_k \in \{0,1\}, k=1,\cdots,K$,           
+- $z_k = 1$ if point $x$ is assigned to mixture component $k$ s.t. if $z_k=1$, then $z_j=0\space   \forall j \ne k$.       
+
+In essence $z_k$ is an indicator variable which specifies the component to which $x$ belongs.
+
+Now we can estimate the e
+
+Now, we write the **joint probability** $p(x_i|z_i,\Theta)$ as:
+$$p(x_i|z_i,\Theta)=\prod_{k=1}^K (\mathcal{N}(x|\mu_k\Sigma))^{z_{n,k}}$$
+
+
+Now we can write the **complete log likelihood function** as:
+$$\text{log    } \mathcal{L}(\Theta|\mathcal{X})=\sum_{i=1}^N\text{log }\sum_{k-1}^K \pi_k\mathcal{N}(x_i|\mu_k,\Sigma)$$
+
+
+
+
+

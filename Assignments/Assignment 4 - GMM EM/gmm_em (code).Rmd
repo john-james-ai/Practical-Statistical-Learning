@@ -1,0 +1,20 @@
+```{r unset_bigmark, echo=FALSE, cache=FALSE, warning=FALSE, message=FALSE}
+knitr::knit_hooks$set(inline = function(x) {
+  prettyNum(x, big.mark="")
+})
+```
+# Guassian Mixture Models (GMM) and Expectation Maximization (EM)
+
+## Gaussian Mixture Models
+Gaussian mixture models (GMM), or Mixtures of Gaussians (MoG) with applications in pattern discovery, cluster analysis, signal processing, astronomy, business and economics, computer vision, object detection, speech recognition, biometrics, and bioinformatics, medicine, unsupervised learning, semi-supervised learning,  spacial and time background modeling, philosophy and the social sciences are a class of Finite Mixture Models dating back to 1894 [Pearson2030] that are emerging as powerful parametric frameworks for data clustering and representing multi-modal data distributions, where:    
+1. The data X = {$x_1,\cdots,x_N$} are known to have been IID-generated from a fixed and known underlying density $p(x)$,      
+2. The density $p(x)$ is a finite mixture model with $K$ components.         
+3. The labels for the data, i.e. the component density from which each data point is drawn is unknown,  
+4. Similarly9, the parameters of the $K$ densities are unknown,   
+5. But the prior probabilities of each component *are* known.      
+3. Though the pawhich are **unknown.**,       
+:the prior probability that , denoted by $P
+
+
+```{python cost_class_hierarchy, echo=T, eval=F,code=readLines('../gradient_descent/operations/cost.py')[10:19]}
+```
