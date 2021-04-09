@@ -8,26 +8,29 @@ test <- readr::read_csv('data/test.csv')
 num_folds <- 10
 wae <- rep(0, num_folds)
 
-for (t in 1:num_folds) {
-  # *** THIS IS YOUR PREDICTION FUNCTION ***
-  test_pred <- mypredict()
-  
-  # load fold file 
-  fold_file <- paste0('data/fold_', t, '.csv')
-  new_train <- readr::read_csv(fold_file, 
-                               col_types = cols())
+models <- c('tlsm.basic')
+for (m in 1:length(models)) {
 
-  # extract predictions matching up to the current fold
-  scoring_tbl <- new_train %>% 
-      left_join(test_pred, by = c('Date', 'Store', 'Dept'))
-  
-  # compute WMAE
-  actuals <- scoring_tbl$Weekly_Sales
-  preds <- scoring_tbl$Weekly_Pred
-  preds[is.na(preds)] <- 0
-  weights <- if_else(scoring_tbl$IsHoliday, 5, 1)
-  wae[t] <- sum(weights * abs(actuals - preds)) / sum(weights)
+  for (t in 1:num_folds) {
+    # *** THIS IS YOUR PREDICTION FUNCTION ***
+    test_pred <- mypredict(models[m])
+    
+    # load fold file 
+    fold_file <- paste0('data/fold_', t, '.csv')
+    new_train <- readr::read_csv(fold_file, 
+                                col_types = cols())
+
+    # extract predictions matching up to the current fold
+    scoring_tbl <- new_train %>% 
+        left_join(test_pred, by = c('Date', 'Store', 'Dept'))
+    
+    # compute WMAE
+    actuals <- scoring_tbl$Weekly_Sales
+    preds <- scoring_tbl$Weekly_Pred
+    preds[is.na(preds)] <- 0
+    weights <- if_else(scoring_tbl$IsHoliday, 5, 1)
+    wae[t] <- sum(weights * abs(actuals - preds)) / sum(weights)
+  }
+  print(mean(wae))
+  print(wae)
 }
-
-print(wae)
-print(mean(wae))

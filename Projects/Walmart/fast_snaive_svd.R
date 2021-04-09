@@ -21,14 +21,14 @@ mypredict = function(){
   # pick out the needed training samples, convert to dummy coding, then put them into a list
   train_split <- unique_pairs %>% 
     left_join(train, by = c('Store', 'Dept')) %>% 
-    mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
+    mutate(Wk = ifelse(year(Date) == 2010, week(Date) - 1, week(Date))) %>% 
     mutate(Yr = year(Date))
   train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept + Yr + Wk, train_split)) %>% group_split(Store, Dept)
   
   # do the same for the test set
   test_split <- unique_pairs %>% 
     left_join(test_current, by = c('Store', 'Dept')) %>% 
-    mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
+    mutate(Wk = ifelse(year(Date) == 2010, week(Date) - 1, week(Date))) %>% 
     mutate(Yr = year(Date))
   test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
 
@@ -39,8 +39,6 @@ mypredict = function(){
   for (i in 1:nrow(unique_pairs)) {
     tmp_train <- train_split[[i]]
     tmp_test <- test_split[[i]]
-    print(head(tmp_train))
-    print(head(tmp_test))
     
     mycoef <- lm.fit(as.matrix(tmp_train[, -(2:4)]), tmp_train$Weekly_Sales)$coefficients
     mycoef[is.na(mycoef)] <- 0

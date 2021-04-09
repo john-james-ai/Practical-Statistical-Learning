@@ -1,6 +1,8 @@
 library(lubridate)
 library(tidyverse)
 library(glmnet)
+library(forecast)
+library(lars)
 
 mypredict = function(){
   # as usual
@@ -16,33 +18,33 @@ mypredict = function(){
   train_pairs <- train[, 1:2] %>% count(Store, Dept) %>% filter(n != 0)
   test_pairs <- test_current[, 1:2] %>% count(Store, Dept) %>% filter(n != 0)
   unique_pairs <- intersect(train_pairs[, 1:2], test_pairs[, 1:2])
-  
+
   # pick out the needed training samples, convert to dummy coding, then put them into a list
   train_split <- unique_pairs %>% 
     left_join(train, by = c('Store', 'Dept')) %>% 
     mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
     mutate(Yr = year(Date))
-  train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept + Yr + Wk, train_split)) %>% group_split(Store, Dept)
+  #train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept + Yr + Wk, train_split)) %>% group_split(Store, Dept)
+  train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept, train_split)) %>% group_split(Store, Dept)
   
   # do the same for the test set
   test_split <- unique_pairs %>% 
     left_join(test_current, by = c('Store', 'Dept')) %>% 
     mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
     mutate(Yr = year(Date))
-  test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)
+  #test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
+  test_split = as_tibble(model.matrix(~ Store + Dept , test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
 
   # pre-allocate a list to store the predictions
   test_pred <- vector(mode = "list", length = nrow(unique_pairs))
-
-  # specify lambdas to try
-  lambdas <- 10^seq(1,-3,by=-.1)
   
   # perform regression for each split, note we used lm.fit instead of lm
   for (i in 1:nrow(unique_pairs)) {
     tmp_train <- train_split[[i]]
-    tmp_test <- test_split[[i]]    
+    tmp_test <- test_split[[i]]
     
-    mycoef <- glmnet(as.matrix(tmp_train[, -(2:4)]), tmp_train$Weekly_Sales, alpha=0, lambda=lambdas)$coefficients
+    fit <- lars(as.matrix(tmp_train[, -(2:4)]), tmp_train$Weekly_Sales)
+    mycoef <- coef(fit,s=0.5, mode="fraction")
     mycoef[is.na(mycoef)] <- 0
     tmp_pred <- mycoef[1] + as.matrix(tmp_test[, 4:55]) %*% mycoef[-1]
     

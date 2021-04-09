@@ -25,7 +25,7 @@ mypredict = function(){
   
   # do the same for the test set
   test_split <- unique_pairs %>% 
-    left_join(test_current, by = c('Store', 'Dept')) %>% 
+    left_join(test_current, by = c('Store', 'Dept')) %>%     
     mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
     mutate(Yr = year(Date))
   test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)
