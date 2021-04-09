@@ -1,4 +1,4 @@
-source("mymain.R")
+source("walmart.R")
 
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
