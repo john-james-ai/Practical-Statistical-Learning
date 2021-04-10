@@ -1,7 +1,12 @@
-library(lubridate)
-library(tidyverse)
 library(glmnet)
 library(forecast)
+library(tidyverse)
+library(lubridate)
+library(reshape)
+library(data.table)
+library(dplyr)
+
+source("visual.R")
 
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
@@ -18,16 +23,25 @@ for (t in 1:num_folds) {
   
   if (t > 1){
     train <<- train %>% add_row(new_train)
-  }
-  
+  }  
+  # train_dt <- train
+  # test_dt <- test_current
+  # setDT(train_dt)
+  # setDT(test_dt)
   # find the unique pairs of (Store, Dept) combo that appeared in both training and test sets
-  train_pairs <- train[, 1:2] %>% count(Store, Dept) %>% filter(n != 0)
-  test_pairs <- test_current[, 1:2] %>% count(Store, Dept) %>% filter(n != 0)
+  train_pairs <- train[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
+  test_pairs <- test[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
   unique_pairs <- intersect(train_pairs[, 1:2], test_pairs[, 1:2])
-
-  print(unique_pairs)
-
-
+  
+  # train_dt <- dcast(train_dt, Date + Dept ~ Store, value.var="Weekly_Sales")
+  # train_split <- split(train_dt, by="Dept")
+  # print("_______________________________________")
+  # print(paste("Fold:",t))
+  # print("_______________________________________")
+  # if (t>1) {
+  #   print(head(train_split))
+  # }
+  
   # pick out the needed training samples, convert to dummy coding, then put them into a list
   train_split <- unique_pairs %>% 
     left_join(train, by = c('Store', 'Dept')) %>% 
@@ -37,14 +51,14 @@ for (t in 1:num_folds) {
   train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept + Wk, train_split)) %>% group_split(Store, Dept)
   print(head(train_split))
   
-  # do the same for the test set
-  test_split <- unique_pairs %>% 
-    left_join(test_current, by = c('Store', 'Dept')) %>% 
-    mutate(Wk = ifelse(year(Date) == 2010, week(Date) - 1, week(Date))) %>% 
-    mutate(Yr = year(Date))
-  #test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
-  test_split = as_tibble(model.matrix(~ Store + Dept + Wk, test_split)) %>% group_split(Store, Dept)  
-  print(head(test_split))
+  # # do the same for the test set
+  # test_split <- unique_pairs %>% 
+  #   left_join(test_current, by = c('Store', 'Dept')) %>% 
+  #   mutate(Wk = ifelse(year(Date) == 2010, week(Date) - 1, week(Date))) %>% 
+  #   mutate(Yr = year(Date))
+  # #test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
+  # test_split = as_tibble(model.matrix(~ Store + Dept + Wk, test_split)) %>% group_split(Store, Dept)  
+  # print(head(test_split))
 
   # # perform regression for each split, note we used lm.fit instead of lm
   # for (i in 1:nrow(unique_pairs)) {
