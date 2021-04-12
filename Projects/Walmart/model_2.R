@@ -4,41 +4,56 @@ library(forecast)
 library(dplyr)
 library(reshape)
 library(plyr)
+library(testit)
 source("utils.R")
 
 model_2 = function(){
 
-  # Obtain data in format for iteration and learning.
-  data <- prep_ts_data() 
-  train_data <- data$train
-  test_data <- data$test
+  # Prepare data for regression or time series modeling.
+  d <- prep_ts_data() 
+  train.dt <- d$train
+  test.dt <- d$test
+  test.current <- d$current
 
-  print(length(train_data))
-  
+  # Pre-allocate a list to store forecasts
+  forecasts <- vector(mode = "list", length = length(train.dt))  
+
   # Process data by department 
-  for (i in 1:length(train_data)) {
+  for (i in 1:length(train.dt)) {
+    train.dept.dt <- as.data.table(train.dt[[i]])
+    test.dept.dt <- as.data.table(test.dt[[i]])    
     
-    train.dt <- as.data.table(train_data[[i]])
-    test.dt <- as.data.table(test_data[[i]])        
-
     # Fit the model and render forecast
-    pred <- tslm.basic(train.dt, test.dt)    
+    pred <- tslm.baseline(train.dept.dt, test.dept.dt)  
 
-    # Holiday Shift
-    if (t==5) {
-      pred = shift(pred)
-    }      
-    test_forecast[[i]] <- pred
+    # Reshape into original long form and convert Store back to integer. 
+    pred <- melt(pred, id.vars=c("Date","Dept"), variable.name = "Store",
+                  value.name = "Weekly_Pred", variable.factor=FALSE)
+    pred$Store <- as.integer(pred$Store)
+
+    #Put this in module that does forecast
+    # # Holiday Shift
+    # if (t==5) {
+    #   pred = shift(pred)
+    # }      
+    forecasts[[i]] <- pred
   }
   
-  # turn the list into a table at once, this is much more efficient then keep concatenating small tables
-  test_forecast <- bind_rows(test_forecast)
+  # turn the list into a data.table at once, this is much more efficient then keep concatenating small tables  
+  forecasts <- bind_rows(forecasts)
+  setDT(forecasts)
+  # Merge forecasts with submission
+  inspect(forecasts,"Combined forecasts prior to merge")
   
-  #save_results(test_forecast, mname,t)    
+  submission <- test.current %>% left_join(forecasts, by=c("Date","Dept","Store"))
   
-  return(test_forecast)
+  inspect(submission, "Check submission")
+  
+  save_results(submission, mname,t)    
+  
+  return(submission)
 }
-tslm.basic <- function(train, test){
+tslm.baseline <- function(train, test){
   # Computes a forecast using time series linear regression 
   # 
   # This function was adapted from the following source:
@@ -47,12 +62,17 @@ tslm.basic <- function(train, test){
   #   3. Title: Walmart_competition_code
   #   4. Link: https://github.com/davidthaler/Walmart_competition_code/grouped.forecast.R
   
+  train <- as.matrix(train[,":="(Date=NULL,Dept=NULL)])
   horizon <- nrow(test)
-  s <- ts(train$Weekly_Sales, frequency=52)
-  fit <- tslm(s ~ trend + season)
-  fc <- forecast(fit, h=horizon)
-  test$Weekly_Pred <- as.numeric(fc$mean)  
-  test
+  train[is.na(train)] <- 0
+
+  for (j in 1:ncol(train)) {
+    s <- ts(train[, j], frequency=52)
+    fit <- tslm(s ~ trend + season)
+    fc <- forecast(fit, h=horizon)
+    test[, j+2] <- as.numeric(fc$mean)  
+  }
+  return(test)
 }
 
 
@@ -98,70 +118,43 @@ shift <- function(test, threshold=1.1, shift=1.5){
 }
 
 prep_ts_data <- function() {
-  print("Preparing TS Data")
-  # Extract current fold data from test
-  start_date <- ymd("2011-03-01") %m+% months(2 * (t - 1))
-  end_date <- ymd("2011-05-01") %m+% months(2 * (t - 1))
-  test_current <- test %>% filter(Date >= start_date & Date < end_date) %>% 
-    select(-IsHoliday) 
-  
   # Iterations 2:10 will feed next periods sales
   if (t > 1){
     train <<- train %>% add_row(new_train)
-  }
-  
-  # find the unique pairs of (Store, Dept) combo that appeared in both training and test sets
-  train_pairs <- train[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
-  test_pairs <- test_current[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
-  unique_pairs <- intersect(train_pairs[, 1:2], test_pairs[, 1:2])
+  }  
 
-  # Get stores, departments and dates from training and test
-  all_stores <- unique(test_current$Store)
-  n_stores <- length(all_stores)
-  test_depts <- unique(test_current$Dept)
-  n_test_depts <- length(test_depts)
-  train_dates <- unique(train$Date)
-  n_train_dates <- length(train_dates)
-  test_dates <- unique(test_current$Date)
-  n_test_dates <- length(test_dates)
+  # Extract current fold data from test
+  start_date <- ymd("2011-03-01") %m+% months(2 * (t - 1))
+  end_date <- ymd("2011-05-01") %m+% months(2 * (t - 1))
+  test.current <- test %>% filter(Date >= start_date & Date < end_date) %>% 
+    select(-IsHoliday) 
 
-  print(unique_pairs)
-  # pick out the needed training samples, then put them into a list by dept
-  tmp_train <- unique_pairs %>% 
-    dplyr::left_join(train, by = c('Store', 'Dept'))  %>% 
-    mutate(Yr = year(Date)) %>% mutate(Wk = week(Date)) 
+  # Find the unique pairs of department and stores that are appear in 
+  # both training and test set.
+  train.pairs <- train[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
+  test.pairs <- test.current[, 1:2] %>% dplyr::count(Store, Dept) %>% filter(n != 0)
+  dept.store.xref <- intersect(train.pairs[, 1:2], test.pairs[, 1:2])    
 
-  # do the same for the test set
-  tmp_test <- unique_pairs %>% 
-    dplyr::left_join(test_current, by = c('Store', 'Dept'))  %>%
-    mutate(Yr = year(Date)) %>% mutate(Wk = week(Date)) 
+  # Expand by store, dept, and date to create a cubic data set, filter
+  # by unique stores and depts in the test set, add a numeric 'Week' variable,
+  # convert to data.table, reshape to wide format, then group by dept.
+  keys <- train %>% tidyr::expand(Dept, Store, Date)
+  train.dt <- train %>% dplyr::right_join(keys) %>% 
+    dplyr::right_join(dept.store.xref) %>%
+    select(!c(IsHoliday)) %>% as.data.table(key="Date") %>%
+    dcast(Date + Dept ~ Store, value.var = "Weekly_Sales") %>%
+    group_split(Dept) 
 
-  train_data <- list()
-  test_data <- list()
-  
-  # Create list of lists of departments
-  i <- 1
-  for (dept in test_depts) {    
-    stores = unique_pairs[unique_pairs$Dept == dept,]$Store
-    for (store in stores) {
-      # Extract department data 
-      train.dt <- as.data.table(subset(tmp_train, (Dept == dept) & (Store == Store)))      
-      test.dt <- as.data.table(subset(tmp_test, (Dept == dept) & (Store == Store)))
-      test.dt$Weekly_Sales <- 0
+  # Same for test
+  keys <- test.current %>% tidyr::expand(Dept, Store, Date)
+  test.dt <- test.current %>% dplyr::right_join(keys) %>% 
+    dplyr::right_join(dept.store.xref) %>%
+    mutate(Weekly_Pred=0) %>%
+    as.data.table(key="Date") %>%
+    dcast(Date + Dept ~ Store, value.var = "Weekly_Pred") %>%
+    group_split(Dept) 
 
-      # Reshape to a matrix [dates x stores].
-      train.dt <- dcast(train.dt, Date + Yr + Wk ~ Store, value.var = "Weekly_Sales")
-      test.dt <- dcast(test.dt, Date + Yr + Wk ~ Store, value.var = "Weekly_Sales")
-
-      # Pack up the data into a list by department
-      print(paste("Iter: ", i))
-      train_data[[i]] <- train.dt
-      test_data[[i]] <- test.dt 
-      i <- i + 1
-    }
-  }
-  data <- list(train = train_data, test = test_data)
-  print("Completing prep")
+  package <- list(train=train.dt, test=test.dt, current=test.current)  
    
-  return(data)
+  return(package)
 }

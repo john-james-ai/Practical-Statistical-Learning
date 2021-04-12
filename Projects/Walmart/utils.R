@@ -41,10 +41,19 @@ gather_results <- function(model) {
     return(results)
 }
 
-inspect <- function(x, summary=FALSE) {
+inspect <- function(x, msg=FALSE, summary=FALSE) {
+
+    cat("\n")
+    print("===========================================")
+    if (msg != FALSE) {
+        print(msg)        
+    }
+    print("-------------------------------------------")
+    
     print(dim(x))
-    print(head(x))
+    print(head(x))    
     if (summary == TRUE) {
         print(summary(x))
     }
 }
+
