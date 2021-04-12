@@ -1,9 +1,9 @@
-source("model_2.R")
+source("mymain.R")
 library(lubridate)
 
 # Model information
-mname <- 'InConstruction'
-mypredict <- model_2
+mname <- 'TSLM SVD (Holiday Shift)'
+adjust <- TRUE
 
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
