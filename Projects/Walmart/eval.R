@@ -1,10 +1,21 @@
 source("mymain.R")
 library(lubridate)
 
-# Model information
-mname <- 'TSLM SVD (Holiday Shift)'
-adjust <- TRUE
+# Parameters for models.
+m0 <- list(model="regression", data='r', adjust=FALSE, model.type=NULL, n.comp=NULL)
+m1 <- list(model="regression", data='r', adjust=TRUE, model.type=NULL, n.comp=NULL)
+m2 <- list(model="snaive", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
+m3 <- list(model="snaive.custom", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
+m4 <- list(model="stlf", data='t', adjust=TRUE, model.type="ets", n.comp=NULL)
+m5 <- list(model="stlf", data='t', adjust=TRUE, model.type="arima", n.comp=NULL)
+m6 <- list(model="stlf.svd", data='t', adjust=TRUE, model.type="ets", n.comp=12)
+m7 <- list(model="stlf.svd", data='t', adjust=TRUE, model.type="arima", n.comp=12)
+m8 <- list(model="tslm", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
+m9 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="ets", n.comp=12)
+m10 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="arima", n.comp=12)
 
+params=NULL
+params <- m10
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
 test <- readr::read_csv('data/test.csv')
@@ -23,7 +34,7 @@ model_start <- Sys.time()
 for (t in 1:num_folds) {
   fold_start <- Sys.time()    
   # *** THIS IS YOUR PREDICTION FUNCTION ***  
-  test_pred <- mypredict()
+  test_pred <- mypredict(params)
   
   # load fold file 
   fold_file <- paste0('data/fold_', t, '.csv')
@@ -50,20 +61,19 @@ for (t in 1:num_folds) {
   scores[[t]] <- wae[t]
   times[[t]] <- fold_time    
 
-  x <- sprintf("Model %s: Fold: %d  WAE: %f  Elapsed: %f", mname, t, wae[t], fold_time)
+  x <- sprintf("Model %s: Fold: %d  WAE: %f  Elapsed: %f", toupper(params$model), t, wae[t], fold_time)
   print(x)
 }
 # Save Model Statistics
 stats <- list("Fold"=folds, "WAE"=scores, "Time Elapsed"=times)
-df <- as.data.frame(matrix(unlist(stats), nrow=length(unlist(stats[1]))))
-names(df) <- c("Fold", "WAE", "Time Elapsed")
-detail_filename <- paste0("reports/",mname,"_detail.csv")
-write.csv(df,detail_filename, row.names=FALSE)
+save_stats(stats, params)
 # Report model summary
 model_end <- Sys.time()
 model_time <- model_end - model_start
 model_time <- round(model_time,digits=2)
-x <- sprintf("Model %s: Mean WAE: %f  Elapsed: %f", mname, mean(wae), model_time)
+summary.stats <- list(params=params, score=mean(wae), time=model_time)
+save_summary_stats(summary.stats, params)
+x <- sprintf("Model %s: Mean WAE: %f  Elapsed: %f", toupper(params$model), mean(wae), model_time)
 print(x)
 
 
