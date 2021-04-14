@@ -10,7 +10,7 @@
 # URL     : https://github.com/john-james-sf/Practical-Statistical-Learning   #
 # --------------------------------------------------------------------------- #
 # Created       : Saturday, April 10th 2021, 7:46:00 am                       #
-# Last Modified : Tuesday, April 13th 2021, 10:45:36 am                       #
+# Last Modified : Tuesday, April 13th 2021, 12:50:26 pm                       #
 # Modified By   : John James (jtjames2@illinois.edu)                          #
 # =========================================================================== #
 # Acknowledgment: Parts of this module borrowed liberally from:               #
@@ -187,6 +187,7 @@ stlf.baseline <- function(train, test, model.type, n.comp) {
   announce()
   horizon <- nrow(test)
   train <- as.matrix(train[,":="(Date=NULL,Dept=NULL)]) 
+  train[is.na(train)] <- 0
   for(j in 1:ncol(train)){
     s <- ts(train[, j], frequency=4)
     if(model.type == 'ets'){
@@ -312,6 +313,8 @@ prep_ts_data <- function() {
 #                             REGRESSION FORMAT                               #
 # --------------------------------------------------------------------------- #
 prep_regression_data <- function() {
+
+  
   
   announce()
   if (t > 1){
@@ -332,18 +335,38 @@ prep_regression_data <- function() {
     left_join(train, by = c('Store', 'Dept')) %>% 
     mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
     mutate(Yr = year(Date))
-  train_split = as.data.table(model.matrix(~ Weekly_Sales + Store + Dept + Yr + Wk, train_split)) %>% group_split(Store, Dept)
+  train_split = as_tibble(model.matrix(~ Weekly_Sales + Store + Dept + Yr + Wk, train_split)) %>% group_split(Store, Dept)
     
   # do the same for the test set
   test_split <- unique_pairs %>% 
-    left_join(test_current, by = c('Store', 'Dept')) %>%     
+    left_join(test_current, by = c('Store', 'Dept')) %>%    
+    mutate(Date=Date) %>% 
     mutate(Wk = factor(ifelse(year(Date) == 2010, week(Date) - 1, week(Date)), levels = 1:52)) %>% 
     mutate(Yr = year(Date))
-  test_split = as.data.table(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
+  if (t==5) {
+    inspect(test_current, "Checking test current")
+    inspect(test_split, "Checking fold 5 test_split")
+    mm <- model.matrix(~ Store + Dept + Yr + Wk, test_split)
+    inspect(mm, "Checking Model matrix")
+  }
+
+  test_split = as_tibble(model.matrix(~ Store + Dept + Yr + Wk, test_split)) %>% mutate(Date = test_split$Date) %>% group_split(Store, Dept)  
 
   package <- list(train=train_split, test=test_split, current=test_current)
 
   return(package)
+}
+# --------------------------------------------------------------------------- #
+preprocess.svd <- function(train, n.comp){
+  # Replaces the training data with a rank-reduced approximation of itself.
+  announce()
+
+  train <- as.matrix(train[,":="(Date=NULL,Dept=NULL)])
+  train[is.na(train)] <- 0
+  z <- svd(train[, 2:ncol(train)], nu=n.comp, nv=n.comp)
+  s <- diag(z$d[1:n.comp])
+  train[, 2:ncol(train)] <- z$u %*% s %*% t(z$v)
+  return(train)
 }
 # --------------------------------------------------------------------------- #
 postprocess_data <- function(test.current, pred.current, params=NULL) {
@@ -375,18 +398,7 @@ post_regression_data <- function(test.current, pred.current) {
   test.current <- cbind(test.current[,2:3], Date=test.current$Date, Weekly_Pred=pred.current[,1])
   return(test.current)
 } 
-# --------------------------------------------------------------------------- #
-preprocess.svd <- function(train, n.comp){
-  # Replaces the training data with a rank-reduced approximation of itself.
-  announce()
 
-  train <- as.matrix(train[,":="(Date=NULL,Dept=NULL)])
-  train[is.na(train)] <- 0
-  z <- svd(train[, 2:ncol(train)], nu=n.comp, nv=n.comp)
-  s <- diag(z$d[1:n.comp])
-  train[, 2:ncol(train)] <- z$u %*% s %*% t(z$v)
-  return(train)
-}
 # =========================================================================== #
 #                                  SHIFT                                      #
 # =========================================================================== #

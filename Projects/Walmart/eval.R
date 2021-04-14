@@ -15,7 +15,7 @@ m9 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="ets", n.comp=12)
 m10 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="arima", n.comp=12)
 
 params=NULL
-params <- m10
+params <- m0
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
 test <- readr::read_csv('data/test.csv')
