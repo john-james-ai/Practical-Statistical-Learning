@@ -10,7 +10,7 @@
 # URL     : https://github.com/john-james-sf/Practical-Statistical-Learning   #
 # --------------------------------------------------------------------------- #
 # Created       : Saturday, April 10th 2021, 7:46:00 am                       #
-# Last Modified : Tuesday, April 13th 2021, 12:50:26 pm                       #
+# Last Modified : Tuesday, April 13th 2021, 11:34:16 pm                       #
 # Modified By   : John James (jtjames2@illinois.edu)                          #
 # =========================================================================== #
 # Acknowledgment: Parts of this module borrowed liberally from:               #
@@ -78,7 +78,7 @@ mypredict = function(params=NULL){
   # Merge forecasts with test data to create submission  
   submission <- test.fold %>% left_join(forecasts, by=c("Date","Dept","Store"))
     
-  save_results(submission, toupper(params$model),t)    
+  save_results(submission, params,t)    
   
   return(submission)
 }
@@ -422,20 +422,47 @@ shift <- function(test, threshold=1.1, shift=1.5){.
 # =========================================================================== #
 #                             UTILITY FUNCTIONS                               #
 # =========================================================================== #
-save_results <- function(x,model,fold, actual=FALSE) {
+save_results <- function(x,params, fold) {
   # Saves predictions for model 
   announce()
   maindir <- "results/"
-  subdir <- model
+  subdir <- get_directory(params)
   path <- paste0(maindir, subdir)
-  dir.create(path, showWarnings = FALSE)
-  if (actual==TRUE) {
-      filename <- paste0("/fold_",fold,"_actual.csv")
-  } else {
-      filename <- paste0("/fold_",fold,"_predicted.csv")
-  }
+  
+  dir.create(path, showWarnings = FALSE)  
+  filename <- paste0("/fold_",fold,"_predicted.csv")
+  
   filepath <- paste0(path,filename)
   write.csv(x, filepath, row.names=FALSE)
+}
+# --------------------------------------------------------------------------- #
+get_directory <- function(params=NULL) {
+  announce()
+  if (params$adjust == TRUE) {
+    shift = "_hs"
+  } else {
+    shift = ""
+  }
+  if (is.null(params)) {
+    f <- 'tslm_hs_svd_12_pc'
+  } else if (params$model == 'regression') {
+    f <- paste0(params$model,shift) 
+  } else if (params$model == 'snaive') {
+    f <- paste0(params$model,shift) 
+  } else if (params$model == 'snaive.custom') {
+    f <- paste0(params$model,shift) 
+  } else if (params$model == 'tslm') {
+    f <- paste0(params$model,shift) 
+  } else if (params$model == 'tslm.svd') {
+    f <- paste0(params$model,shift,"_", params$n.comp, "_pc")
+  } else if (params$model == 'stlf') {
+    f <- paste0(params$model,shift,"_",params$model.type)
+  } else if (params$model == 'stlf.svd') {
+    f <- paste0(params$model,shift,"_",params$model.type, "_", params$n.comp, "_pc")
+  }  else {
+    print("Model type invalid")
+  }
+  return(f)    
 }
 # --------------------------------------------------------------------------- #
 gather_results <- function(model) {
@@ -510,7 +537,7 @@ save_stats <- function(stats, params=NULL) {
 # --------------------------------------------------------------------------- #
 save_summary_stats <- function(stats, params=NULL) {
   announce()
-  directory <- "results/stats/"
+  directory <- "analysis/"
   filename <- 'summary.csv'
   filepath <- paste0(directory,filename)
 

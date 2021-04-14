@@ -10,13 +10,14 @@
 # URL     : https://github.com/john-james-sf/Practical-Statistical-Learning   #
 # --------------------------------------------------------------------------- #
 # Created       : Tuesday, April 13th 2021, 11:12:41 am                       #
-# Last Modified : Tuesday, April 13th 2021, 8:17:20 pm                        #
+# Last Modified : Wednesday, April 14th 2021, 6:30:30 am                      #
 # Modified By   : John James (jtjames2@illinois.edu)                          #
 # --------------------------------------------------------------------------- #
 # License : BSD                                                               #
 # Copyright (c) 2021 nov8.ai                                                  #
 # =========================================================================== #
 #%%
+import os
 from collections import OrderedDict
 import calendar
 import numpy as np
@@ -31,9 +32,11 @@ sns.set(style="whitegrid")
 sns.set_palette("dark")
 # --------------------------------------------------------------------------- #
 def get_data():
-    filename = "./data/train_ini.csv"
-    train = pd.read_csv(filename)
-    return train
+    train_filename = "./data/train_ini.csv"
+    all_filename = "./data/train.csv"
+    train = pd.read_csv(train_filename)
+    full = pd.read_csv(all_filename)
+    return train, full
 # --------------------------------------------------------------------------- #
 def preprocess(df):
     # Add Year, Month and Week to dataframe
@@ -47,9 +50,9 @@ def preprocess(df):
     df["IsHolidayMonth"] = False
     df.loc[df["Month"].isin([2,9,11,12]), "IsHolidayMonth"] = True
 
-    # Add Department and Store as String for Plotting
-    df["Dept_s"] = df["Dept"].apply(str)
-    df["Store_s"] = df["Store"].apply(str)
+    # Change Department and Store as String for Plotting
+    df["Dept"] = df["Dept"].apply(str)
+    df["Store"] = df["Store"].apply(str)
     # Add Location as Department / Store combination
     df["Location"] = df["Dept"].astype(str) + "-" + df["Store"].astype(str)
     # Holidays
@@ -77,25 +80,47 @@ def get_stores(df):
     stores.drop(columns=['Dept'], inplace=True)    
     return stores
 
-def show_sales(df, level=None, start="2010-02", end="2011-02"):
+def show_sales(df, level=None, hue=None, start="2010-02", end="2011-02"):
 
     if level:
-        title = f"Walmart Sales Analysis\nWeekly Average Sales by {level}\{start} thru {end}"
+        title = f"Walmart Sales Analysis\nWeekly Average Sales by {level}\n{start} thru {end}"
     else:
         title = f"Walmart Sales Analysis\nWeekly Average Sales {start} thru {end}"
 
-    fig, ax = plt.subplots(figsize=(8,5))
-    sns.lineplot(x="DateTime", y="Weekly_Sales", data=df, ax=ax)
+    fig, ax = plt.subplots(figsize=(8,8))    
+    sns.lineplot(x="DateTime", y="Weekly_Sales",hue=hue, data=df, ax=ax)
     ax.set(xlabel="Date", ylabel="Weekly Sales", title=title)
     ax.title.set_size(12)
+    plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()    
+    plt.show()   
 
-def analyze_sales(df, level="Dept"):
-    g = df.groupby(by=level).mean()
-    print(g.describe(percentiles=[.2,.5,.8]).T)
-    print(g.nlargest(n=10, columns=["Weekly_Sales"]))
+def show_forecasts(results, hue=None, title=None):
+    title = f"Walmart Sales Analysis\nActual vs Forecast Sales\n2011-03 thru 2012-10"
+    snaive = results[results["Model"].isin(["ACTUAL", "SNAIVE"])]
+    stlf = results[results["Model"].isin(["ACTUAL", "STLF"])]
+    tslm = results[results["Model"].isin(["ACTUAL", "TSLM"])]
+    tslm_svd = results[results["Model"].isin(["ACTUAL", "TSLM.SVD"])]
 
+    
+    fig, axes = plt.subplots(nrows=2, ncols=2,  figsize=(12,12))
+    
+    sns.lineplot(x="DateTime", y="Weekly_Sales", data=snaive, hue=hue, ax=axes[0,0])
+    axes[0,0].set(xlabel="Date", ylabel="Weekly Sales", title="Seasonal Naive")
+
+    sns.lineplot(x="DateTime", y="Weekly_Sales", data=stlf, hue=hue, ax=axes[0,1])
+    axes[0,1].set(xlabel="Date", ylabel="Weekly Sales", title="Seasonal & Trend Decomposition w/ Loess")    
+
+    sns.lineplot(x="DateTime", y="Weekly_Sales", data=tslm, hue=hue, ax=axes[1,0])
+    axes[1,0].set(xlabel="Date", ylabel="Weekly Sales", title="Linear Time Series")        
+
+    sns.lineplot(x="DateTime", y="Weekly_Sales", data=tslm_svd, hue=hue, ax=axes[1,1])
+    axes[1,1].set(xlabel="Date", ylabel="Weekly Sales", title="Time Series w/ Rank Reduction")        
+
+    plt.suptitle(f"Walmart Sales Analysis\nActual vs Forecast\nMarch 2011 thru October 2012", fontsize=12)    
+    plt.xticks(rotation = 45)
+    plt.tight_layout()
+    plt.show()       
 
 
 def show_decomposition(d, hue=None, level=None):
@@ -153,46 +178,66 @@ def get_seasonality(d):
     d["strength"] = max(0,1-(np.var(d["resid"]) / np.var(d["season"]+d["resid"]) ))    
     return d
 
-def analyze_seasonality(df, level="Dept"):
-    df = df.groupby(by=[level,"DateTime"]).mean()
-    df.reset_index(inplace=True)   
-    d = decompose(df)     
-    print(d.head())
-    s = get_seasonality(d)
-    print(s.head())
-    # groups = np.sort(df[level].unique())
-    # strength = []
-    # season = []
-    # for group in groups:
-    #     d = decompose(df[df[level]==group])  
-    #     print(d.head())  
+def analyze_sales(df, level="Dept", start=11.0, end=12.0):
+    df = df[df["Month"].isin([start, end])]
+    g = df.groupby(by=level).agg({"Weekly_Sales": ['mean','std']})
+    g.columns = g.columns.droplevel()
+    print(g.head())
+    top10_mean = g.nlargest(n=10, columns=['mean'])
+    top10_std = g.nlargest(n=10, columns=["std"])
+    top10_mean_df = df[df["Dept"].isin(top10_mean.index)]
+    top10_std_df = df[df["Dept"].isin(top10_std.index)]
+    show_sales(top10_mean_df, level="Department", hue="Dept", start="2010-11", end="2010-12")
+    show_sales(top10_std_df, level="Department", hue="Dept", start="2010-11", end="2010-12")
+
+def get_pred(model):
+    directory = "./results/" + model
+    files = os.listdir(directory)
+    pred = pd.DataFrame()
+    for f in files:
+        filename = directory + "/" + f
+        df = pd.read_csv(filename)
+        pred = pd.concat([pred, df], axis=0)    
+    pred["DateTime"] = pd.to_datetime(pred["Date"], format="%Y-%m-%d")
+    pred["Model"] = model
+    return pred
         
-    #     s = get_seasonality(d)
-    #     strength.append(s["strength"])
-    #     season.append(s["season"].mean())
-    # d = {level: groups, "Seasonality": season, "Strength": strength}        
-    return s
+
+def forecasts(full):
+    models = ["snaive", "snaive_hs", "stlf_hs_ets", "stlf.svd_hs_ets_12_pc", "tslm_hs", "tslm.svd_hs_12_pc"]
+    pred = pd.DataFrame()
+    for model in models:
+        p = get_pred(model)
+        pred = pd.concat([pred,p], axis=0)
+    actual_2011 = full[(full["Year"]==2011) & (full["Month"]>2)]
+    actual_2012 = full.loc[full["Year"]==2012]
+    actual = pd.concat([actual_2011, actual_2012], axis=0)
+    actual["Model"] = "ACTUAL"
+    pred["Weekly_Sales"] = pred["Weekly_Pred"]
+    results = pd.concat([actual, pred], axis=0)
+    results.sort_values(by=["Model","Date"], inplace=True)
+    print(results.head())
+    pred.sort_values(by=["Model","Date"], inplace=True)
+    actual.sort_values(by="Date", inplace=True)    
+    show_forecasts(results,hue='Model')    
+
+
 
 def analyze(df):
     # Analyze department seasonality
-    s = analyze_seasonality(df, level="Dept")
-    print(s.head())
-    print(s.describe(percentiles=[.05, .2,  .5, .8, .95]).T)
-    print(s.sort_values(by="season", ascending=False))
-    top5dept = [77,39,43,99,78]
-    top5dept = df[df["Dept"].isin(top5dept)] 
-    d = decompose(top5dept)
-    show_decomposition(d)
+    analyze_sales(df, level="Dept", start=11, end=12)
     
 def main():
-    df = get_data()
-    df = preprocess(df)    
-    analyze(df)
+    df, full = get_data()
+    df = preprocess(df) 
+    d = decompose(df)
+    show_decomposition(d)
+    #full = preprocess(full)   
+    #forecasts(full)    
 
 if __name__ == "__main__":
     main()
 
-#%%    
-
+#%%
 
 

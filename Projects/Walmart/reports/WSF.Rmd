@@ -1,0 +1,46 @@
+# Introduction 
+In October 2008, Walmart, a $234B retailer, adjusted 4th Quarter sales expectations towards the high end of their 1%-3% forecast for December. In January, Walmart posted a December same-store sales increase of 1.7%, 1.1% shy of expectations set the prior fall. The market reacted. At "the Bell" on January 26, 2009, Walmart closed \$185.61B. Nearly \$50B (25%) of Walmart's valuation dissipated for not meeting expectations. 
+
+For the World's largest retailer, sales forecasts have strategic importance. Product, pricing, and promotion decisions, supply chain strategy, inventory levels, budgeting, capital expense, and human resource projections rest on the accuracy of sales forecasts. Moreso, sales forecasts are a leading indicator of company profitability, its prospects, its valuation. And in many respects, analysts consider the sales forecast the most trusted barometer of a company's health.
+
+Autoregression (AR) [@sims1980], Moving Average (MA) [@Yule1909], Exponential Smoothing (ES) [@brown1961], Autoregressive Moving Average (ARMA) [@box1976time] AND Autoregressive Integrated Moving Average (ARIMA) [@box1976time] are among the most widely used time series analysis and projection techniques in sales forecasting. The purpose of this project is to explore the application of these algorithms to the problem of large retail sales forecasting. 
+
+Concretely, Walmart has provided historical sales data (Feb 2010 - Oct 2012) for 45 Walmart stores and 81 departments from across the U.S [@Kaggle2014]. The challenge is to implement a recursive multi-step forecasting model that predicts sales for a series of two-month periods. The base training set consists of historical sales data from February 2010 through the end of February 2011. The first step is to forecast sales for March and April 2011. Once completed, the actual sales data for that period will be combined with the training data. This augmented training data will then provide the basis for forecasting May and June 2011. The process iterates for an additional nine cycles through October of 2012 for a total of ten, two-month folds. To add to the challenge, the data also include selected markdown events coinciding with the Super Bowl, Labor Day, Thanksgiving and Christmas. Given the importance of markdown events to overall sales and forecasting, forecasting error around these events will have a greater weight. The objective is to achieve a minimum weighted mean absolute error of 1630 or lower. This document outlines the methods, models, and results of this experiment.
+
+# Data
+```{python get_data_code, code=readLines("../eda.py")}
+```
+
+```{python get_data}
+train, full = get_data()
+nobs = train.shape[0]
+n_departments = train["Dept"].nunique()
+n_stores = train["Store"].nunique()
+total_sales = train["Weekly_Sales"].sum()
+```
+Provided for this challenge was a zipfile containing the data and a R routine for generating a training set and the ten test sets. 
+
+The training set provided historical sales covering the period from February 2010, through February 2011 and contained five features: "Store", "Dept", "Date", "Weekly Sales", "IsHoliday". Each of the `r py$nobs` observations, represented one week's sales for `r py$n_departments` departments, and `r py$n_stores` stores. In total, `r py$n_departments * py$n_stores` business units generated \$`r py$total_sales` of revenue in 13 months.
+
+Ten test sets were generated, each covering a two month period between March 2011, and October 2011, and contained four features: "Store", "Dept", "Date", "IsHoliday. 
+
+## Exploratory Data Analysis
+Having generated the data, an exploratory effort confirmed significant seasonality around the Holidays and perturbations around in February, August and late October.
+```{python plot_stl}
+d = decompose(train)
+show_decomposition(d)
+```
+
+
+
+
+
+
+
+
+
+decisions. Supply chain, inventory, capital expenditure, human resources and budgeting ,  strategy,  promotions, pricingdepend upon sales forecasts   in large retail shape marketing plans, drive inventory decisions, and support capital expenditures. 
+# Data 
+# Methods
+# Models
+# Results

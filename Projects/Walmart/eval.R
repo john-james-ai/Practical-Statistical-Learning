@@ -4,8 +4,8 @@ library(lubridate)
 # Parameters for models.
 m0 <- list(model="regression", data='r', adjust=FALSE, model.type=NULL, n.comp=NULL)
 m1 <- list(model="regression", data='r', adjust=TRUE, model.type=NULL, n.comp=NULL)
-m2 <- list(model="snaive", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
-m3 <- list(model="snaive.custom", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
+m2 <- list(model="snaive", data='t', adjust=FALSE, model.type=NULL, n.comp=NULL)
+m3 <- list(model="snaive", data='t', adjust=TRUE, model.type=NULL, n.comp=NULL)
 m4 <- list(model="stlf", data='t', adjust=TRUE, model.type="ets", n.comp=NULL)
 m5 <- list(model="stlf", data='t', adjust=TRUE, model.type="arima", n.comp=NULL)
 m6 <- list(model="stlf.svd", data='t', adjust=TRUE, model.type="ets", n.comp=12)
@@ -15,7 +15,7 @@ m9 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="ets", n.comp=12)
 m10 <- list(model="tslm.svd", data='t', adjust=TRUE, model.type="arima", n.comp=12)
 
 params=NULL
-params <- m0
+params <- m6
 # read in train / test dataframes
 train <- readr::read_csv('data/train_ini.csv')
 test <- readr::read_csv('data/test.csv')
